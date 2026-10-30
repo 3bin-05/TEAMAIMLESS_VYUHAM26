@@ -6,7 +6,7 @@ from local_ai.models import AIAnalysisResult, AIStatus
 from local_ai.config import AIConfig
 from local_ai.exceptions import AIParserError
 
-VALID_VERDICTS = {"SAFE", "SUSPICIOUS", "CRITICAL"}
+VALID_VERDICTS = {"SAFE", "SUSPICIOUS", "MALICIOUS", "CRITICAL"}
 
 
 def extract_json_str(raw_text: str) -> str:
@@ -40,8 +40,7 @@ def parse_ai_response(
 ) -> AIAnalysisResult:
     """Parse, validate, and sanitize raw LLM completion output into typed AIAnalysisResult.
 
-    The LLM is now the final decision authority: its final_verdict and final_score
-    are extracted and stored so the engine can apply them as the authoritative classification.
+    Strictly produces one of three final verdicts: SAFE, SUSPICIOUS, MALICIOUS.
     """
     cfg = config or AIConfig()
 
@@ -75,25 +74,28 @@ def parse_ai_response(
         conflicting_signals = sanitize_list(data.get("conflicting_signals"), cfg.max_findings, cfg.max_text_length)
         uncertainties = sanitize_list(data.get("uncertainties"), cfg.max_findings, cfg.max_text_length)
 
-        # --- Extract LLM-authoritative final verdict and score ---
+        # --- Extract LLM-authoritative final verdict and score (strictly SAFE, SUSPICIOUS, MALICIOUS) ---
         raw_verdict = data.get("final_verdict")
         final_verdict: Optional[str] = None
-        if isinstance(raw_verdict, str) and raw_verdict.strip().upper() in VALID_VERDICTS:
-            final_verdict = raw_verdict.strip().upper()
+        if isinstance(raw_verdict, str):
+            clean_verdict = raw_verdict.strip().upper()
+            if clean_verdict in VALID_VERDICTS:
+                # Normalize CRITICAL -> MALICIOUS
+                final_verdict = "MALICIOUS" if clean_verdict == "CRITICAL" else clean_verdict
 
         raw_score = data.get("final_score")
         final_score: Optional[int] = None
         if isinstance(raw_score, (int, float)) and not isinstance(raw_score, bool):
             final_score = max(0, min(100, int(round(raw_score))))
 
-        # Consistency check: clamp score to match verdict ranges
+        # Consistency check: clamp score to match 3 strict ranges
         if final_verdict and final_score is not None:
             if final_verdict == "SAFE" and final_score > 29:
                 final_score = min(29, final_score)
-            elif final_verdict == "SUSPICIOUS" and not (30 <= final_score <= 79):
-                final_score = max(30, min(79, final_score))
-            elif final_verdict == "CRITICAL" and final_score < 80:
-                final_score = max(80, final_score)
+            elif final_verdict == "SUSPICIOUS" and not (30 <= final_score <= 69):
+                final_score = max(30, min(69, final_score))
+            elif final_verdict == "MALICIOUS" and final_score < 70:
+                final_score = max(70, final_score)
 
         return AIAnalysisResult(
             available=True,

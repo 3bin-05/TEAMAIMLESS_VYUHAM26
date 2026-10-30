@@ -5,12 +5,14 @@ from dataclasses import dataclass, field
 from .exceptions import DecisionError
 
 DEFAULT_SAFE_THRESHOLD = 30
-DEFAULT_CRITICAL_THRESHOLD = 70
+DEFAULT_MALICIOUS_THRESHOLD = 70
 
 
 @dataclass
 class DecisionConfig:
-    """Centralized, configurable decision thresholds for classification."""
+    """Centralized, configurable decision thresholds for classification.
+    Strictly three output states: SAFE, SUSPICIOUS, MALICIOUS.
+    """
     safe_threshold: int = field(
         default_factory=lambda: int(
             os.getenv("AEGIS_SAFE_THRESHOLD", str(DEFAULT_SAFE_THRESHOLD))
@@ -18,15 +20,19 @@ class DecisionConfig:
     )
     critical_threshold: int = field(
         default_factory=lambda: int(
-            os.getenv("AEGIS_CRITICAL_THRESHOLD", str(DEFAULT_CRITICAL_THRESHOLD))
+            os.getenv("AEGIS_CRITICAL_THRESHOLD", str(DEFAULT_MALICIOUS_THRESHOLD))
         )
     )
+
+    @property
+    def malicious_threshold(self) -> int:
+        return self.critical_threshold
 
     def __post_init__(self):
         if not (0 <= self.safe_threshold < self.critical_threshold <= 100):
             raise ValueError(
                 f"Invalid decision thresholds: safe_threshold ({self.safe_threshold}) "
-                f"must be less than critical_threshold ({self.critical_threshold}) "
+                f"must be less than malicious_threshold ({self.critical_threshold}) "
                 f"and both within range [0, 100]."
             )
 
@@ -34,14 +40,14 @@ class DecisionConfig:
 def classify_risk(
     risk_score: int, config: Optional[DecisionConfig] = None
 ) -> str:
-    """Classify a 0-100 risk score into SAFE, SUSPICIOUS, or CRITICAL.
+    """Classify a 0-100 risk score strictly into SAFE, SUSPICIOUS, or MALICIOUS.
 
     Args:
         risk_score: Calculated risk score (0-100).
         config: Optional DecisionConfig for custom thresholds.
 
     Returns:
-        One of exact strings: 'SAFE', 'SUSPICIOUS', 'CRITICAL'.
+        One of exact strings: 'SAFE', 'SUSPICIOUS', 'MALICIOUS'.
 
     Raises:
         DecisionError: If risk_score is invalid or not between 0 and 100.
@@ -63,7 +69,7 @@ def classify_risk(
     elif risk_score < cfg.critical_threshold:
         return "SUSPICIOUS"
     else:
-        return "CRITICAL"
+        return "MALICIOUS"
 
 
 def generate_reasons(
@@ -80,7 +86,7 @@ def generate_reasons(
         reasons.append("Low phishing probability from the ML model.")
     elif classification == "SUSPICIOUS":
         reasons.append("The ML model indicates a moderate phishing risk.")
-    elif classification == "CRITICAL":
+    elif classification in ("MALICIOUS", "CRITICAL"):
         reasons.append("The ML model indicates a high phishing risk.")
 
     # 2. Add explicit descriptions from cybersecurity signals if present

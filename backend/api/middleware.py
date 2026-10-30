@@ -12,6 +12,17 @@ logger = logging.getLogger("aegis.api")
 
 SAFE_REQUEST_ID_REGEX = re.compile(r"^[a-zA-Z0-9\-_]{1,128}$")
 
+DEFAULT_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
+CORS_ORIGIN_REGEX = r"^(chrome-extension://.*|http://(localhost|127\.0\.0\.1)(:\d+)?)$"
+
 
 class RequestIdMiddleware(BaseHTTPMiddleware):
     """Attach unique X-Request-ID to incoming request state and outgoing response header."""
@@ -43,29 +54,27 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 def parse_cors_origins() -> List[str]:
     cors_env = os.getenv("AEGIS_CORS_ORIGINS", "")
     if not cors_env.strip():
-        # Default origins for development / local extension compatibility
-        return [
-            "chrome-extension://*",
-            "http://localhost:3000",
-            "http://localhost:8000",
-            "http://127.0.0.1:8000",
-            "*"
-        ]
-    origins = [o.strip() for o in cors_env.split(",") if o.strip()]
-    return origins if origins else ["*"]
+        return list(DEFAULT_ALLOWED_ORIGINS)
+    parsed = [o.strip() for o in cors_env.split(",") if o.strip()]
+    origins = [o for o in parsed if not o.startswith("chrome-extension://*")]
+    for def_orig in DEFAULT_ALLOWED_ORIGINS:
+        if def_orig not in origins:
+            origins.append(def_orig)
+    return origins
 
 
 def setup_middleware(app: FastAPI) -> None:
     origins = parse_cors_origins()
-    
+
     # Configure CORS
-    allow_credentials = "*" not in origins
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
-        allow_credentials=allow_credentials,
-        allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization", "X-Request-ID", "X-Client-Version", "Accept"],
+        allow_origin_regex=CORS_ORIGIN_REGEX,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["*"],
     )
 
     # Custom Middlewares

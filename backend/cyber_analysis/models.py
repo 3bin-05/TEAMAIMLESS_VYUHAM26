@@ -8,12 +8,13 @@ class SecuritySeverity:
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
+    MALICIOUS = "critical"
 
 
 @dataclass
 class SecuritySignal:
     """Represents an evidence-backed security observation emitted by an analyzer."""
-    source: str          # "dns", "http", "tls", "redirect", "threat_intel"
+    source: str          # "dns", "http", "tls", "redirect", "threat_intel", "rdap", "web_history"
     type: str            # e.g., "certificate_expired", "known_malicious_match"
     severity: str        # "info", "low", "medium", "high", "critical"
     description: str
@@ -47,6 +48,8 @@ class CyberAnalysisResult:
     tls: AnalyzerResult = field(default_factory=AnalyzerResult)
     redirects: AnalyzerResult = field(default_factory=AnalyzerResult)
     threat_intel: AnalyzerResult = field(default_factory=AnalyzerResult)
+    rdap: AnalyzerResult = field(default_factory=AnalyzerResult)
+    web_history: AnalyzerResult = field(default_factory=AnalyzerResult)
     signals: List[SecuritySignal] = field(default_factory=list)
     total_time_ms: float = 0.0
 
@@ -57,6 +60,8 @@ class CyberAnalysisResult:
             "tls": self.tls.to_dict(),
             "redirects": self.redirects.to_dict(),
             "threat_intel": self.threat_intel.to_dict(),
+            "rdap": self.rdap.to_dict(),
+            "web_history": self.web_history.to_dict(),
             "signals": [s.to_dict() if hasattr(s, "to_dict") else s for s in self.signals],
             "total_time_ms": self.total_time_ms,
         }

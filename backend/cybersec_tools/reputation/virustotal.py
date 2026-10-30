@@ -11,10 +11,7 @@ class VirusTotalClient:
     """Client for VirusTotal API v3 URL reputation lookups."""
 
     def __init__(self, api_key: Optional[str] = None, timeout: float = 3.5):
-        self.api_key = api_key or os.getenv(
-            "VIRUSTOTAL_API_KEY",
-            "92a2f3426e2b512c588780f358a60e4eeb2a11e66b832f29b8d440e42182cc1f"
-        )
+        self.api_key = api_key or os.getenv("VIRUSTOTAL_API_KEY", "")
         self.timeout = timeout
         self.base_url = "https://www.virustotal.com/api/v3/urls"
 

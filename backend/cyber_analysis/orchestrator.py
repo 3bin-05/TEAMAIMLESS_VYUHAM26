@@ -9,6 +9,8 @@ from .http import HTTPAnalyzer
 from .tls import TLSAnalyzer
 from .redirects import RedirectAnalyzer
 from .threat_intel import LocalThreatIntelProvider, ThreatIntelProvider
+from cybersec_tools.reputation.rdap import RDAPClient
+from cybersec_tools.reputation.web_history import WebHistoryScraper
 
 
 class CyberOrchestrator:
@@ -21,13 +23,17 @@ class CyberOrchestrator:
         tls_analyzer: Optional[TLSAnalyzer] = None,
         redirect_analyzer: Optional[RedirectAnalyzer] = None,
         threat_intel_provider: Optional[ThreatIntelProvider] = None,
-        max_workers: int = 5,
+        rdap_client: Optional[RDAPClient] = None,
+        web_history_scraper: Optional[WebHistoryScraper] = None,
+        max_workers: int = 7,
     ):
         self.dns_analyzer = dns_analyzer or DNSAnalyzer()
         self.http_analyzer = http_analyzer or HTTPAnalyzer()
         self.tls_analyzer = tls_analyzer or TLSAnalyzer()
         self.redirect_analyzer = redirect_analyzer or RedirectAnalyzer()
         self.threat_intel_provider = threat_intel_provider or LocalThreatIntelProvider()
+        self.rdap_client = rdap_client or RDAPClient()
+        self.web_history_scraper = web_history_scraper or WebHistoryScraper()
         self.max_workers = max_workers
 
     def analyze(self, url: str) -> CyberAnalysisResult:
@@ -38,6 +44,8 @@ class CyberOrchestrator:
         tls_res = AnalyzerResult()
         redirect_res = AnalyzerResult()
         threat_intel_res = AnalyzerResult()
+        rdap_res = AnalyzerResult()
+        web_history_res = AnalyzerResult()
 
         tasks = {
             "dns": lambda: self.dns_analyzer.analyze(url),
@@ -45,6 +53,8 @@ class CyberOrchestrator:
             "tls": lambda: self.tls_analyzer.analyze(url),
             "redirects": lambda: self.redirect_analyzer.analyze(url),
             "threat_intel": lambda: self.threat_intel_provider.lookup_url(url),
+            "rdap": lambda: self.rdap_client.lookup_domain(url),
+            "web_history": lambda: self.web_history_scraper.lookup_footprint(url),
         }
 
         results: Dict[str, AnalyzerResult] = {}
@@ -69,10 +79,12 @@ class CyberOrchestrator:
         tls_res = results.get("tls", tls_res)
         redirect_res = results.get("redirects", redirect_res)
         threat_intel_res = results.get("threat_intel", threat_intel_res)
+        rdap_res = results.get("rdap", rdap_res)
+        web_history_res = results.get("web_history", web_history_res)
 
         # Aggregate all emitted security signals
         aggregated_signals: List[SecuritySignal] = []
-        for r in (dns_res, http_res, tls_res, redirect_res, threat_intel_res):
+        for r in (dns_res, http_res, tls_res, redirect_res, threat_intel_res, rdap_res, web_history_res):
             if r and r.signals:
                 aggregated_signals.extend(r.signals)
 
@@ -84,6 +96,8 @@ class CyberOrchestrator:
             tls=tls_res,
             redirects=redirect_res,
             threat_intel=threat_intel_res,
+            rdap=rdap_res,
+            web_history=web_history_res,
             signals=aggregated_signals,
             total_time_ms=elapsed_ms,
         )

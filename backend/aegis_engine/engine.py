@@ -1,5 +1,6 @@
 import os
 import time
+import logging
 from typing import Dict, Any, List, Optional, Callable
 from dataclasses import dataclass, asdict
 
@@ -7,10 +8,13 @@ from ml_model import predict_url, normalize_url, MODEL_VERSION
 from ml_model.exceptions import InvalidURLError
 from cache import MemoryCache
 from cyber_analysis import CyberOrchestrator, CyberAnalysisResult
+from cyber_analysis.threat_intel.official_domains import check_official_domain
 from local_ai import LocalAIAnalyzer, AIAnalysisResult
 from .risk_scorer import calculate_risk_score
 from .decision_engine import DecisionConfig, classify_risk, generate_reasons
 from .exceptions import EngineError
+
+logger = logging.getLogger("aegis.engine")
 
 
 @dataclass
@@ -74,7 +78,7 @@ class AegisEngine:
         force_cyber_analysis: Optional[bool] = None,
         force_ai_analysis: Optional[bool] = None,
     ) -> AnalysisResult:
-        """Run complete Aegis security analysis on the provided URL.
+        """Run complete Aegis security analysis on the provided URL with multi-tiered fallback.
 
         Args:
             url: The input URL string.
@@ -86,7 +90,6 @@ class AegisEngine:
 
         Raises:
             InvalidURLError: If the input URL is empty, None, or non-string.
-            EngineError / MLError: If analysis or prediction fails (Never fails open).
         """
         if url is None or not isinstance(url, str):
             raise InvalidURLError(
@@ -98,9 +101,31 @@ class AegisEngine:
 
         canonical_url = normalize_url(url)
         start_time = time.perf_counter()
+
+        try:
+            return self._execute_pipeline(
+                url, canonical_url, start_time, force_cyber_analysis, force_ai_analysis
+            )
+        except InvalidURLError:
+            raise
+        except Exception as err:
+            logger.error(
+                f"Aegis primary pipeline encountered error: {err}. Activating Emergency ML Fallback.",
+                exc_info=True,
+            )
+            return self._emergency_fallback(url, canonical_url, str(err), start_time)
+
+    def _execute_pipeline(
+        self,
+        url: str,
+        canonical_url: str,
+        start_time: float,
+        force_cyber_analysis: Optional[bool] = None,
+        force_ai_analysis: Optional[bool] = None,
+    ) -> AnalysisResult:
         active_version = MODEL_VERSION
 
-        # 1. Trust Cache lookup
+        # 1. Trust Cache lookup (Tier 1 Fallback / Fast-path)
         cached_data = self.cache.get(
             canonical_url, active_model_version=active_version
         )
@@ -118,15 +143,54 @@ class AegisEngine:
                 ai=cached_data.get("ai"),
             )
 
-        # 2. Phase 1 ML Analysis (Cache Miss)
-        ml_result = self.predictor_fn(url)
+        # 2. Official Restricted Domain Fast-Path (Government, Military, Academic, Bank, etc.)
+        # Registration is legally restricted to verified organizations.
+        # Zero resource waste: Never blacklisted, fixed reason, skips local LLM.
+        official_info = check_official_domain(canonical_url)
+        if official_info:
+            elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
+            reasons = [
+                f"Verified Official Restricted Domain ({official_info.category} - {official_info.name}).",
+                f"Registration is strictly restricted to {official_info.intended_org}. Cannot be registered by the public.",
+                official_info.description,
+            ]
+            signals = {
+                "official_domain": official_info.to_dict(),
+                "fast_path": True,
+                "resource_saving": True,
+                "ml_probability": 0.0,
+                "ml_prediction": 0,
+                "ml_label": "BENIGN",
+            }
+            ai_data = {
+                "available": False,
+                "status": "bypassed_official_verified",
+                "summary": f"Fast-path verified {official_info.name}. Local LLM bypassed to conserve system resources.",
+                "final_verdict": "SAFE",
+                "final_score": 0,
+            }
+            res = AnalysisResult(
+                url=canonical_url,
+                classification="SAFE",
+                risk_score=0,
+                cached=False,
+                reasons=reasons,
+                signals=signals,
+                model_version=active_version,
+                analysis_time_ms=elapsed_ms,
+                ai=ai_data,
+            )
+            self.cache.set(canonical_url, res.to_dict(), model_version=active_version)
+            return res
 
+        # 3. Local XGBoost ML Model Analysis (Tier 2 Primary Classifier)
+        ml_result = self.predictor_fn(url)
         if not isinstance(ml_result, dict):
             raise EngineError(
                 f"Predictor returned invalid result type: {type(ml_result).__name__}"
             )
 
-        # 3. Optional Deep Cybersecurity Analysis
+        # 3. Cybersecurity & Threat Intel Analysis (Tier 3 Enrichment)
         should_run_cyber = (
             force_cyber_analysis
             if force_cyber_analysis is not None
@@ -141,8 +205,11 @@ class AegisEngine:
                 cyber_result = self.cyber_orchestrator.analyze(canonical_url)
                 if cyber_result and cyber_result.signals:
                     cyber_signals = cyber_result.signals
-            except Exception:
-                # Controlled failure: if deep analysis fails unexpectedly, record error but do not fail open
+            except Exception as cyber_err:
+                logger.warning(
+                    f"Cyber analysis encountered an error for {canonical_url}: {cyber_err}. "
+                    f"Falling back to local ML heuristics."
+                )
                 cyber_signals = []
 
         # 4. Integrated Risk Scoring (DETERMINISTIC)
@@ -181,10 +248,8 @@ class AegisEngine:
             ai=None,
         )
 
-        # 8. Local AI Analysis — FINAL AUTHORITATIVE CLASSIFICATION
-        # The LLM reviews all evidence (ML, cyber analysis, brand lookalike patterns) and
-        # produces a final_verdict and final_score that override the deterministic result.
-        # If AI is offline or returns no valid verdict, the deterministic result stands unchanged.
+        # 8. Local AI Analysis (Tier 4 Advisory & Authoritative Override)
+        # If AI is slow, offline, or times out, the deterministic result stands as fallback
         should_run_ai = (
             force_ai_analysis
             if force_ai_analysis is not None
@@ -202,11 +267,12 @@ class AegisEngine:
                         prev_classification = result.classification
                         prev_score = result.risk_score
 
-                        # Override deterministic classification with LLM decision
-                        result.classification = ai_res.final_verdict
+                        verdict = ai_res.final_verdict.upper()
+                        if verdict == "CRITICAL":
+                            verdict = "MALICIOUS"
+                        result.classification = verdict
                         result.risk_score = ai_res.final_score
 
-                        # Prepend an audit reason explaining the AI override
                         if ai_res.final_verdict != prev_classification:
                             result.reasons.insert(
                                 0,
@@ -221,16 +287,28 @@ class AegisEngine:
                                 f"(final score: {ai_res.final_score}/100)."
                             )
 
-                        # Preserve deterministic result in signals for transparency / audit trail
                         result.signals["deterministic_pre_ai"] = {
                             "classification": prev_classification,
                             "risk_score": prev_score,
                         }
+                    else:
+                        # AI unavailable or timed out: record graceful fallback
+                        result.signals["ai_fallback"] = {
+                            "active": True,
+                            "reason": ai_res.error or f"AI status: {ai_res.status}",
+                            "reverted_to": "deterministic",
+                        }
             except Exception as e:
+                logger.warning(f"Local AI failed for {canonical_url}: {e}. Falling back to deterministic.")
                 result.ai = {
                     "available": False,
                     "status": "provider_error",
                     "error": str(e),
+                }
+                result.signals["ai_fallback"] = {
+                    "active": True,
+                    "reason": str(e),
+                    "reverted_to": "deterministic",
                 }
 
         # 9. Trust Cache Storage
@@ -239,3 +317,65 @@ class AegisEngine:
         )
 
         return result
+
+    def _emergency_fallback(
+        self,
+        url: str,
+        canonical_url: str,
+        error_msg: str,
+        start_time: float,
+    ) -> AnalysisResult:
+        """Emergency Tier 1/2 Fallback: If deep analysis or pipeline crashes,
+        safely fall back to the standalone local ML model and safe heuristics without failing open."""
+        elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
+        try:
+            ml_res = self.predictor_fn(url)
+            prob = float(ml_res.get("probability", 0.5))
+            score = int(prob * 100)
+
+            if score >= self.decision_config.critical_threshold:
+                classification = "MALICIOUS"
+            elif score >= self.decision_config.safe_threshold:
+                classification = "SUSPICIOUS"
+            else:
+                classification = "SAFE"
+
+            reasons = [
+                f"Emergency Fallback Mode active: primary pipeline encountered an issue ({error_msg}).",
+                f"Classified via local XGBoost ML model with {round(prob * 100, 1)}% phishing probability."
+            ]
+            signals = {
+                "fallback_mode": True,
+                "fallback_reason": error_msg,
+                "ml_probability": prob,
+                "ml_label": ml_res.get("label", classification),
+            }
+        except Exception as ml_err:
+            classification = "SUSPICIOUS"
+            score = 50
+            reasons = [
+                f"Emergency Fallback Mode: Engine and ML failure ({error_msg}; {ml_err}).",
+                "Flagged as SUSPICIOUS to protect the user."
+            ]
+            signals = {
+                "fallback_mode": True,
+                "fallback_reason": f"{error_msg} | {ml_err}",
+                "ml_probability": 0.5,
+                "ml_label": "UNKNOWN",
+            }
+
+        return AnalysisResult(
+            url=canonical_url,
+            classification=classification,
+            risk_score=score,
+            cached=False,
+            reasons=reasons,
+            signals=signals,
+            model_version=MODEL_VERSION,
+            analysis_time_ms=elapsed_ms,
+            ai={
+                "available": False,
+                "status": "fallback_bypassed",
+                "error": error_msg,
+            },
+        )

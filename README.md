@@ -228,9 +228,9 @@ npm run dev
 ```
 
 The web dashboard will be available at:
-- **Web App URL**: `http://localhost:3000`
+- **Web App URL**: `http://127.0.0.1:3000` (or `http://localhost:3000`)
 
-The dashboard automatically connects to `http://localhost:8000`. You can test by typing any URL (e.g. `https://google.com` or `http://suspicious-phish-domain.xyz`) and clicking **Scan**.
+The dashboard automatically connects to `http://127.0.0.1:8000`. You can test by typing any URL (e.g. `https://google.com` or `http://suspicious-phish-domain.xyz`) and clicking **Scan**.
 
 ---
 

@@ -8,6 +8,21 @@ from local_ai.models import AIStatus
 router = APIRouter(tags=["Health"])
 
 
+@router.get("/", summary="Root API welcome index")
+def root_index() -> dict:
+    """Root index endpoint providing service status and documentation links."""
+    return {
+        "service": "aegis-backend",
+        "status": "online",
+        "version": "1.0.0",
+        "docs_url": "/docs",
+        "redoc_url": "/redoc",
+        "health_url": "/api/v1/health",
+        "ready_url": "/api/v1/ready",
+        "message": "AEGIS Backend API is operational. Visit /docs for interactive Swagger UI."
+    }
+
+
 @router.get("/health", response_model=HealthResponse, summary="Lightweight health check endpoint")
 @router.get("/api/v1/health", response_model=HealthResponse, summary="Lightweight health check endpoint (v1)")
 def health_check() -> HealthResponse:

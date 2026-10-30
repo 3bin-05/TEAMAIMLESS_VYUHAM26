@@ -10,10 +10,7 @@ class GoogleSafeBrowsingClient:
     """Client for Google Safe Browsing API v4 URL threat verification."""
 
     def __init__(self, api_key: Optional[str] = None, timeout: float = 3.5):
-        self.api_key = api_key or os.getenv(
-            "GOOGLE_SAFE_BROWSING_API_KEY",
-            "AIzaSyCiQsS818HaYVhel0q4ZddEBNCW0JsmXZc"
-        )
+        self.api_key = api_key or os.getenv("GOOGLE_SAFE_BROWSING_API_KEY", "")
         self.timeout = timeout
         self.endpoint_template = "https://safebrowsing.googleapis.com/v4/threatMatches:find?key={key}"
 
