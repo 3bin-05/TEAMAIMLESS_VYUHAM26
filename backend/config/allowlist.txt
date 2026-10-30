@@ -1,0 +1,19 @@
+# AEGIS Trusted Local Allowlist
+# Exact or subdomain boundary matching
+google.com
+github.com
+wikipedia.org
+python.org
+microsoft.com
+apple.com
+amazon.com
+openai.com
+chatgpt.com
+facebook.com
+paypal.com
+netflix.com
+twitter.com
+x.com
+instagram.com
+linkedin.com
+

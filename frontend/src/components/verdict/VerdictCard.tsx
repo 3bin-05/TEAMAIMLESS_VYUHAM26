@@ -13,17 +13,21 @@ import {
   Building,
   History
 } from 'lucide-react';
-import type { Verdict, PolicyAction, AIExplanation } from '../../types/api';
+import type { Verdict, PolicyAction, AIExplanation, DecisionDetails } from '../../types/api';
 
 interface VerdictCardProps {
   verdict: Verdict;
   action: PolicyAction;
   riskScore?: number | null;
   reason?: string;
+  reasons?: string[];
+  decisionDetails?: DecisionDetails;
+  confidenceLevel?: string;
+  evidenceCompleteness?: number | null;
   url: string;
   scanId?: string;
   timestamp?: string;
-  aiExplanation?: AIExplanation;
+  aiExplanation?: AIExplanation | null;
   onReset?: () => void;
   onProceedAtOwnRisk?: () => void;
   isExtensionContext?: boolean;
@@ -32,7 +36,12 @@ interface VerdictCardProps {
 export const VerdictCard: React.FC<VerdictCardProps> = ({
   verdict: rawVerdict,
   action,
+  riskScore,
   reason,
+  reasons,
+  decisionDetails,
+  confidenceLevel,
+  evidenceCompleteness,
   url,
   scanId,
   timestamp,
@@ -59,9 +68,11 @@ export const VerdictCard: React.FC<VerdictCardProps> = ({
     normalizedVerdict = 'INCONCLUSIVE';
   }
 
+  const displayTitle = rawVerdict === 'CRITICAL' ? 'CRITICAL' : normalizedVerdict;
+
   // Auto-redirect timer for SAFE results (Req 15.7.A)
   useEffect(() => {
-    if (normalizedVerdict !== 'SAFE' || redirectPaused) return;
+    if (normalizedVerdict !== 'SAFE' || redirectPaused || !url) return;
 
     if (countdown <= 0) {
       // Set session authorization key to prevent redirect loops
@@ -82,6 +93,7 @@ export const VerdictCard: React.FC<VerdictCardProps> = ({
   }, [normalizedVerdict, countdown, redirectPaused, url]);
 
   const handleCopy = () => {
+    if (!url) return;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -100,7 +112,7 @@ export const VerdictCard: React.FC<VerdictCardProps> = ({
   const handleAuthorizeProceed = () => {
     if (onProceedAtOwnRisk) {
       onProceedAtOwnRisk();
-    } else {
+    } else if (url) {
       // Temporary single-navigation authorization
       try {
         sessionStorage.setItem(`aegis_authorized_${encodeURIComponent(url)}`, 'true');
@@ -116,14 +128,14 @@ export const VerdictCard: React.FC<VerdictCardProps> = ({
     switch (normalizedVerdict) {
       case 'SAFE':
         return {
-          title: 'SAFE',
-          headline: 'Verified Safe by AEGIS AI',
+          title: displayTitle,
+          headline: 'Verified Safe by AEGIS Security',
           icon: CheckCircle2,
           iconBg: 'bg-emerald-600 text-white shadow-emerald-200 shadow-md',
           containerClass: 'bg-gradient-to-b from-emerald-50/80 to-white border-emerald-200/80 text-emerald-950',
           pillBg: 'bg-emerald-100 text-emerald-800 border-emerald-300',
           summaryFallback:
-            'AEGIS AI has evaluated all available cybersecurity evidence and found no significant indicators of phishing or malicious activity.',
+            'AEGIS has evaluated all available cybersecurity intelligence and found no significant indicators of phishing or malicious activity.',
           defaultReasons: [
             'The domain has an established registration history.',
             'Available evidence supports its association with the claimed organization.',
@@ -133,14 +145,14 @@ export const VerdictCard: React.FC<VerdictCardProps> = ({
         };
       case 'SUSPICIOUS':
         return {
-          title: 'SUSPICIOUS',
-          headline: 'Suspicious Activity Detected by AEGIS AI',
+          title: displayTitle,
+          headline: 'Suspicious Activity Detected by AEGIS',
           icon: AlertTriangle,
           iconBg: 'bg-amber-600 text-white shadow-amber-200 shadow-md',
           containerClass: 'bg-gradient-to-b from-amber-50/80 to-white border-amber-200/80 text-amber-950',
           pillBg: 'bg-amber-100 text-amber-800 border-amber-300',
           summaryFallback:
-            'AEGIS AI has identified suspicious indicators that suggest potential phishing, deceptive impersonation, or unverified domain credibility.',
+            'AEGIS has identified suspicious indicators that suggest potential phishing, deceptive impersonation, or unverified domain credibility.',
           defaultReasons: [
             'The domain has limited verifiable registration history.',
             'Its claimed organizational identity could not be independently established.',
@@ -150,14 +162,14 @@ export const VerdictCard: React.FC<VerdictCardProps> = ({
         };
       case 'MALICIOUS':
         return {
-          title: 'MALICIOUS',
-          headline: 'Malicious Threat Detected by AEGIS AI',
+          title: displayTitle,
+          headline: displayTitle === 'CRITICAL' ? 'Critical Security Threat Detected by AEGIS' : 'Malicious Threat Detected by AEGIS',
           icon: ShieldAlert,
           iconBg: 'bg-red-600 text-white shadow-red-200 shadow-md',
           containerClass: 'bg-gradient-to-b from-red-50/90 to-white border-red-200/90 text-red-950',
           pillBg: 'bg-red-100 text-red-800 border-red-300',
           summaryFallback:
-            'AEGIS AI has determined that this website presents active malicious risks, phishing signatures, or deceptive brand impersonation.',
+            'AEGIS has determined that this website presents active malicious risks, phishing signatures, or deceptive brand impersonation.',
           defaultReasons: [
             'The destination has been associated with confirmed phishing activity.',
             'Multiple threat intelligence findings support a malicious classification.',
@@ -168,14 +180,14 @@ export const VerdictCard: React.FC<VerdictCardProps> = ({
       case 'INCONCLUSIVE':
       default:
         return {
-          title: 'INCONCLUSIVE',
-          headline: 'Verification Failed / Inconclusive Evidence',
+          title: rawVerdict === 'INSUFFICIENT_EVIDENCE' ? 'INSUFFICIENT EVIDENCE' : 'INCONCLUSIVE',
+          headline: 'Verification Inconclusive / Insufficient Evidence',
           icon: HelpCircle,
           iconBg: 'bg-slate-700 text-white shadow-slate-200 shadow-md',
           containerClass: 'bg-gradient-to-b from-slate-50 to-white border-slate-300 text-slate-900',
           pillBg: 'bg-slate-200 text-slate-800 border-slate-300',
           summaryFallback:
-            'AEGIS AI could not gather sufficient verifiable historical or threat intelligence data to confirm safety. Conservative security failure policy applies.',
+            'AEGIS could not gather sufficient verifiable historical or threat intelligence data to confirm safety. Conservative security policy applies.',
           defaultReasons: [
             'Essential domain registration information was unavailable or obscured.',
             'Threat intelligence databases returned inconclusive coverage for this host.',
@@ -188,13 +200,17 @@ export const VerdictCard: React.FC<VerdictCardProps> = ({
   const theme = getVerdictTheme();
   const Icon = theme.icon;
 
-  // AI-generated summary paragraph (Req 15.7 / 15.8)
-  const aiSummary = aiExplanation?.summary || reason || theme.summaryFallback;
+  // Real backend summary text
+  const summaryText = aiExplanation?.summary || decisionDetails?.summary || reason || theme.summaryFallback;
 
-  // AI Reasons list
-  const aiReasons = aiExplanation?.reasons && aiExplanation.reasons.length > 0
-    ? aiExplanation.reasons
-    : null;
+  // Real supporting threat factors
+  const supportingFactors = decisionDetails?.supporting_factors || [];
+  const benignFactors = decisionDetails?.benign_factors || [];
+  const rawReasonsList = reasons || [];
+  const aiReasons = aiExplanation?.reasons && aiExplanation.reasons.length > 0 ? aiExplanation.reasons : null;
+
+  const hasRealFactors = supportingFactors.length > 0 || benignFactors.length > 0;
+  const hasRawReasons = rawReasonsList.length > 0;
 
   return (
     <div
@@ -218,15 +234,26 @@ export const VerdictCard: React.FC<VerdictCardProps> = ({
                   Action: {action}
                 </span>
               )}
-              {isExtensionContext && (
+              {riskScore !== null && riskScore !== undefined && (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase bg-slate-900 text-white border border-slate-800">
+                  Risk Score: {riskScore}/100
+                </span>
+              )}
+              {confidenceLevel && (
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-blue-50 text-blue-700 border border-blue-200">
+                  Confidence: {confidenceLevel}
+                </span>
+              )}
+              {evidenceCompleteness !== null && evidenceCompleteness !== undefined && (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-neutral-100 text-neutral-700 border border-neutral-300">
+                  Evidence: {Math.round(evidenceCompleteness * 100)}%
+                </span>
+              )}
+              {isExtensionContext && (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-purple-50 text-purple-700 border border-purple-200">
                   Extension Gateway
                 </span>
               )}
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                <span>Ollama AI Threat Analyst Verdict</span>
-              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1.5 text-slate-900 font-sans">
               {theme.title}
@@ -256,45 +283,85 @@ export const VerdictCard: React.FC<VerdictCardProps> = ({
             Target URL:
           </span>
           <span className="font-mono text-slate-800 truncate select-all font-medium">
-            {url}
+            {url || 'URL pending verification'}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="flex items-center gap-1 text-slate-600 hover:text-slate-900 font-medium shrink-0 transition-colors"
-          title="Copy URL"
-        >
-          {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-          <span>{copied ? 'Copied' : 'Copy'}</span>
-        </button>
+        {url && (
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="flex items-center gap-1 text-slate-600 hover:text-slate-900 font-medium shrink-0 transition-colors"
+            title="Copy URL"
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copied ? 'Copied' : 'Copy'}</span>
+          </button>
+        )}
       </div>
 
-      {/* 3. AI-Generated Summary (Req 15.7 / 15.8) */}
+      {/* 3. Security Summary */}
       <div className="mt-6 p-5 rounded-2xl bg-white/95 border border-slate-200/90 shadow-xs">
         <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
           <Sparkles className="w-4 h-4 text-blue-600" />
-          <span>AI Analysis Summary</span>
+          <span>{aiExplanation?.summary ? 'AI Security Assessment Summary' : 'AEGIS Decision Engine Summary'}</span>
         </div>
         <p className="text-sm sm:text-base text-slate-900 font-medium leading-relaxed">
-          &ldquo;{aiSummary}&rdquo;
+          &ldquo;{summaryText}&rdquo;
         </p>
       </div>
 
-      {/* 4. AI-Generated Bullet-Point Explanations (Req 15.7 / 15.8) */}
+      {/* 4. Real Supporting Factors & Threat Findings */}
       <div className="mt-6">
         <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
-          Key Reasons &amp; Supporting Evidence:
+          Key Reasons &amp; Corroborating Evidence:
         </h2>
 
         <div className="space-y-2.5">
-          {aiReasons ? (
+          {hasRealFactors ? (
+            <>
+              {/* Supporting Threat Factors */}
+              {supportingFactors.map((factor, idx) => (
+                <div
+                  key={`sup-${idx}`}
+                  className="p-3.5 rounded-xl bg-white/90 border border-slate-200/80 shadow-xs flex items-start gap-3 text-xs"
+                >
+                  <div className="w-2 h-2 rounded-full bg-red-600 mt-1.5 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-slate-800 leading-relaxed font-semibold">{factor}</p>
+                  </div>
+                </div>
+              ))}
+
+              {/* Benign Corroborating Factors */}
+              {benignFactors.map((factor, idx) => (
+                <div
+                  key={`ben-${idx}`}
+                  className="p-3.5 rounded-xl bg-white/90 border border-emerald-200/80 shadow-xs flex items-start gap-3 text-xs"
+                >
+                  <div className="w-2 h-2 rounded-full bg-emerald-600 mt-1.5 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-emerald-950 leading-relaxed font-medium">{factor}</p>
+                  </div>
+                </div>
+              ))}
+            </>
+          ) : hasRawReasons ? (
+            rawReasonsList.map((reasonText, idx) => (
+              <div
+                key={idx}
+                className="p-3.5 rounded-xl bg-white/90 border border-slate-200/80 shadow-xs flex items-start gap-3 text-xs"
+              >
+                <div className="w-2 h-2 rounded-full bg-slate-900 mt-1.5 shrink-0" />
+                <p className="text-slate-800 leading-relaxed font-medium">{reasonText}</p>
+              </div>
+            ))
+          ) : aiReasons ? (
             aiReasons.map((r, idx) => (
               <div
                 key={idx}
                 className="p-3.5 rounded-xl bg-white/90 border border-slate-200/80 shadow-xs flex items-start gap-3 text-xs"
               >
-                <div className="w-1.5 h-1.5 rounded-full bg-slate-900 mt-1.5 shrink-0" />
+                <div className="w-2 h-2 rounded-full bg-slate-900 mt-1.5 shrink-0" />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <strong className="text-slate-900 font-semibold">{r.title}</strong>

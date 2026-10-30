@@ -10,7 +10,14 @@ import type {
   UserDecisionResponse,
 } from '../types/api';
 
-const DEFAULT_API_BASE_URL = 'http://localhost:8000';
+const getInitialDefaultBaseUrl = (): string => {
+  if (typeof window !== 'undefined' && window.location.hostname === '127.0.0.1') {
+    return 'http://127.0.0.1:8000';
+  }
+  return 'http://localhost:8000';
+};
+
+const DEFAULT_API_BASE_URL = getInitialDefaultBaseUrl();
 const STORAGE_KEY_API_BASE = 'aegis_api_base_url';
 
 export class ApiError extends Error {
@@ -115,12 +122,16 @@ export class ApiClient {
   /**
    * Analyse a URL using POST /api/v1/analyze
    */
-  public async analyzeUrl(url: string, source: 'dashboard' | 'chrome_extension' = 'dashboard'): Promise<AnalyzeResponse> {
+  public async analyzeUrl(url: string, source: string = 'dashboard'): Promise<AnalyzeResponse> {
     const payload: AnalyzeRequest = { url, source };
-    return this.request<AnalyzeResponse>('/api/v1/analyze', {
+    const res = await this.request<AnalyzeResponse>('/api/v1/analyze', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+    // Normalize url & timestamps
+    res.url = res.url || res.original_url || url;
+    res.timestamp = res.timestamp || res.created_at || new Date().toISOString();
+    return res;
   }
 
   /**
@@ -145,7 +156,10 @@ export class ApiClient {
    * Retrieve final verdict via GET /api/v1/verdict/{scan_id}
    */
   public async getVerdict(scanId: string): Promise<AnalyzeResponse> {
-    return this.request<AnalyzeResponse>(`/api/v1/verdict/${encodeURIComponent(scanId)}`);
+    const res = await this.request<AnalyzeResponse>(`/api/v1/verdict/${encodeURIComponent(scanId)}`);
+    res.url = res.url || res.original_url || res.normalized_url || '';
+    res.timestamp = res.timestamp || res.created_at || new Date().toISOString();
+    return res;
   }
 
   /**
@@ -153,20 +167,27 @@ export class ApiClient {
    */
   public async getHistory(): Promise<ScanHistoryItem[]> {
     const res = await this.request<ScanHistoryResponse | ScanHistoryItem[]>('/api/v1/history');
+    let items: ScanHistoryItem[] = [];
     if (Array.isArray(res)) {
-      return res;
+      items = res;
+    } else if (res && Array.isArray(res.scans)) {
+      items = res.scans;
     }
-    if (res && Array.isArray(res.scans)) {
-      return res.scans;
-    }
-    return [];
+    return items.map((item) => ({
+      ...item,
+      url: item.url || item.original_url || '',
+      timestamp: item.timestamp || item.created_at || new Date().toISOString(),
+    }));
   }
 
   /**
    * Retrieve specific scan details via GET /api/v1/history/{scan_id}
    */
   public async getHistoryScan(scanId: string): Promise<AnalyzeResponse> {
-    return this.request<AnalyzeResponse>(`/api/v1/history/${encodeURIComponent(scanId)}`);
+    const res = await this.request<AnalyzeResponse>(`/api/v1/history/${encodeURIComponent(scanId)}`);
+    res.url = res.url || res.original_url || res.normalized_url || '';
+    res.timestamp = res.timestamp || res.created_at || new Date().toISOString();
+    return res;
   }
 
   /**

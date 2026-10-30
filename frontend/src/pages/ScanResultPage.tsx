@@ -69,9 +69,13 @@ export const ScanResultPage: React.FC = () => {
             action={scan.action}
             riskScore={scan.risk_score}
             reason={scan.reason}
-            url={scan.url}
+            reasons={scan.reasons}
+            decisionDetails={scan.decision_details}
+            confidenceLevel={scan.confidence_level}
+            evidenceCompleteness={scan.evidence_completeness}
+            url={scan.url || scan.original_url || ''}
             scanId={scan.scan_id}
-            timestamp={scan.timestamp}
+            timestamp={scan.timestamp || scan.created_at}
             aiExplanation={scan.ai_explanation}
           />
 
@@ -79,7 +83,7 @@ export const ScanResultPage: React.FC = () => {
             checks={scan.checks}
             domainImpersonation={scan.domain_impersonation}
             aiExplanation={scan.ai_explanation}
-            normalizedUrl={scan.normalized_url}
+            normalizedUrl={scan.normalized_url || scan.url || scan.original_url}
           />
         </div>
       )}

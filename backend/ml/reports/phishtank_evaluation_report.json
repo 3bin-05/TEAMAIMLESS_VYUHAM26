@@ -1,7 +1,0 @@
-{
-  "evaluation_dataset": "PhishTank.csv (Verified Phishing)",
-  "sample_size": 5000,
-  "phishing_detected": 4670,
-  "detection_rate": 0.934,
-  "mean_phishing_confidence": 0.8947
-}

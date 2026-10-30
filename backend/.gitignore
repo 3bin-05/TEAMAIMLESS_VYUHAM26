@@ -1,9 +1,38 @@
-.venv/
+# Python
 __pycache__/
 *.py[cod]
-.pytest_cache/
+
+# Virtual environment
+.venv/
+
+# Environment variables
 .env
-data/*.db
-logs/*.log
-ml/*.joblib
-ml/*.pkl
+
+# IDE
+.vscode/
+.idea/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Firebase credentials
+firebase-service-account.json
+
+# Local AI runtime data
+.ollama/
+
+# Temporary files
+tmp/
+temp/
+
+# Original ML source repository/reference
+ml_source/

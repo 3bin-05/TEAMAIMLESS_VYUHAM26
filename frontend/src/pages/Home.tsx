@@ -184,6 +184,10 @@ export const Home: React.FC = () => {
               action={scanResult.action}
               riskScore={scanResult.risk_score}
               reason={scanResult.reason}
+              reasons={scanResult.reasons}
+              decisionDetails={scanResult.decision_details}
+              confidenceLevel={scanResult.confidence_level}
+              evidenceCompleteness={scanResult.evidence_completeness}
               url={scanResult.url}
               scanId={scanResult.scan_id}
               timestamp={scanResult.timestamp}
