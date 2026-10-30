@@ -1,0 +1,226 @@
+{
+  "total_urls": 31,
+  "false_positive_count": 5,
+  "legitimate_correct_count": 26,
+  "false_positive_rate": 0.1613,
+  "accuracy_on_legitimate": 0.8387,
+  "results": [
+    {
+      "url": "https://linkedin.com/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.023,
+      "confidence": 0.977,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://www.linkedin.com/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0107,
+      "confidence": 0.9893,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://linkedin.com/jobs",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0477,
+      "confidence": 0.9523,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://www.linkedin.com/in/example",
+      "prediction": "legitimate",
+      "phishing_probability": 0.1392,
+      "confidence": 0.8608,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://github.com/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0192,
+      "confidence": 0.9808,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://www.github.com/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0103,
+      "confidence": 0.9897,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://github.com/torvalds/linux",
+      "prediction": "legitimate",
+      "phishing_probability": 0.4497,
+      "confidence": 0.5503,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://google.com/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0192,
+      "confidence": 0.9808,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://www.google.com/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0103,
+      "confidence": 0.9897,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://www.google.com/search?q=cybersecurity",
+      "prediction": "phishing",
+      "phishing_probability": 0.9949,
+      "confidence": 0.9949,
+      "is_false_positive": true
+    },
+    {
+      "url": "https://microsoft.com/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0283,
+      "confidence": 0.9717,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://www.microsoft.com/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0087,
+      "confidence": 0.9913,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://www.microsoft.com/en-us/windows",
+      "prediction": "phishing",
+      "phishing_probability": 0.7074,
+      "confidence": 0.7074,
+      "is_false_positive": true
+    },
+    {
+      "url": "https://apple.com/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.023,
+      "confidence": 0.977,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://www.apple.com/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0063,
+      "confidence": 0.9937,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://www.apple.com/iphone",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0129,
+      "confidence": 0.9871,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://amazon.com/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0192,
+      "confidence": 0.9808,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://www.amazon.com/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0103,
+      "confidence": 0.9897,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://www.amazon.com/gp/bestsellers",
+      "prediction": "legitimate",
+      "phishing_probability": 0.3917,
+      "confidence": 0.6083,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://python.org/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0052,
+      "confidence": 0.9948,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://www.python.org/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0113,
+      "confidence": 0.9887,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://www.python.org/downloads/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0335,
+      "confidence": 0.9665,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://wikipedia.org/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0391,
+      "confidence": 0.9609,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://www.wikipedia.org/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0059,
+      "confidence": 0.9941,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://en.wikipedia.org/wiki/Phishing",
+      "prediction": "phishing",
+      "phishing_probability": 0.9645,
+      "confidence": 0.9645,
+      "is_false_positive": true
+    },
+    {
+      "url": "https://cloudflare.com/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0299,
+      "confidence": 0.9701,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://www.cloudflare.com/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.009,
+      "confidence": 0.991,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://www.cloudflare.com/learning/ddos/what-is-ddos/",
+      "prediction": "phishing",
+      "phishing_probability": 0.9465,
+      "confidence": 0.9465,
+      "is_false_positive": true
+    },
+    {
+      "url": "https://stackoverflow.com/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0671,
+      "confidence": 0.9329,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://www.stackoverflow.com/",
+      "prediction": "legitimate",
+      "phishing_probability": 0.0153,
+      "confidence": 0.9847,
+      "is_false_positive": false
+    },
+    {
+      "url": "https://stackoverflow.com/questions/tagged/python",
+      "prediction": "phishing",
+      "phishing_probability": 0.9838,
+      "confidence": 0.9838,
+      "is_false_positive": true
+    }
+  ]
+}

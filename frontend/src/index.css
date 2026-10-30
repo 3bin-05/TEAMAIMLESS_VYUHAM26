@@ -1,0 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --brand-navy-950: #071B3A;
+    --brand-navy-900: #0B2447;
+    --brand-navy-800: #0F2D59;
+    --brand-blue-700: #1D4ED8;
+    --brand-blue-600: #2563EB;
+    --brand-blue-100: #DBEAFE;
+    
+    --bg-page: #F8FAFC;
+    --surface-card: #FFFFFF;
+    --border-subtle: #E2E8F0;
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --text-muted: #94A3B8;
+
+    --status-safe: #059669;
+    --status-safe-bg: #ECFDF5;
+    --status-safe-border: #A7F3D0;
+
+    --status-suspicious: #D97706;
+    --status-suspicious-bg: #FFFBEB;
+    --status-suspicious-border: #FDE68A;
+
+    --status-critical: #DC2626;
+    --status-critical-bg: #FEF2F2;
+    --status-critical-border: #FECACA;
+  }
+
+  body {
+    background-color: #F8F9FA;
+    background-image: url('/silky-wave.png');
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    margin: 0;
+  }
+
+  /* Accessibility visible focus states */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid #2563EB;
+    outline-offset: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
