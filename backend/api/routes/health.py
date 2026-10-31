@@ -54,15 +54,28 @@ def readiness_check(engine: AegisEngine = Depends(get_aegis_engine)) -> Readines
     # 2. Cyber Analysis readiness check
     cyber_status = "ready" if engine.enable_cyber_analysis else "disabled"
 
-    # 3. Local AI readiness check
+    # 3. Local / Hybrid AI readiness check
     ai_status = "disabled"
     if engine.enable_ai and engine.ai_analyzer:
         try:
-            if not engine.ai_analyzer.config.enabled:
+            cfg = engine.ai_analyzer.config
+            if not cfg.enabled:
                 ai_status = AIStatus.DISABLED
+            elif getattr(engine.ai_analyzer, "mode", "") == "hybrid":
+                local_ok = engine.ai_analyzer.local_provider.health_check()
+                claude_ok = bool(
+                    engine.ai_analyzer.claude_provider
+                    and engine.ai_analyzer.claude_provider.health_check()
+                )
+                if local_ok and engine.ai_analyzer.local_provider.is_model_available(cfg.model):
+                    ai_status = "hybrid_local_active"
+                elif claude_ok:
+                    ai_status = "hybrid_claude_active"
+                else:
+                    ai_status = AIStatus.UNAVAILABLE
             elif not engine.ai_analyzer.provider.health_check():
                 ai_status = AIStatus.UNAVAILABLE
-            elif not engine.ai_analyzer.provider.is_model_available(engine.ai_analyzer.config.model):
+            elif not engine.ai_analyzer.provider.is_model_available(cfg.model):
                 ai_status = AIStatus.MODEL_NOT_FOUND
             else:
                 ai_status = "available"

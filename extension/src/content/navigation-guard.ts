@@ -10,6 +10,40 @@ const isLocalhostFrontend =
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
   (window.location.port === '3000' || window.location.port === '5173');
 
+function isSearchEngine(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return (
+      host === 'google.com' ||
+      host.endsWith('.google.com') ||
+      host.includes('google.') ||
+      host === 'bing.com' ||
+      host.endsWith('.bing.com') ||
+      host === 'duckduckgo.com' ||
+      host.endsWith('.duckduckgo.com') ||
+      host === 'yahoo.com' ||
+      host.endsWith('.yahoo.com') ||
+      host.endsWith('.brave.com') ||
+      host === 'ecosia.org' ||
+      host.endsWith('.ecosia.org') ||
+      host === 'startpage.com' ||
+      host.endsWith('.startpage.com') ||
+      host === 'kagi.com' ||
+      host.endsWith('.kagi.com') ||
+      host === 'yandex.com' ||
+      host.endsWith('.yandex.com') ||
+      host === 'yandex.ru' ||
+      host === 'baidu.com' ||
+      host.endsWith('.baidu.com') ||
+      host === 'ask.com' ||
+      host.endsWith('.ask.com') ||
+      host === 'wolframalpha.com'
+    );
+  } catch {
+    return false;
+  }
+}
+
 if (isLocalhostFrontend) {
   // Mark DOM so the AEGIS web app knows the extension is installed and active
   document.documentElement.setAttribute('data-aegis-extension-active', 'true');
@@ -45,7 +79,8 @@ if (isLocalhostFrontend) {
       currentUrl.startsWith('chrome') ||
       currentUrl.startsWith('about:') ||
       currentUrl.startsWith('data:') ||
-      currentUrl.startsWith('blob:');
+      currentUrl.startsWith('blob:') ||
+      isSearchEngine(currentUrl);
 
     if (!isExcluded) {
       chrome.runtime.sendMessage(

@@ -472,3 +472,96 @@ def check_official_domain(hostname_or_url: str) -> Optional[OfficialDomainInfo]:
                 )
 
     return None
+
+
+SEARCH_ENGINE_CATALOG: Dict[str, str] = {
+    "google": "Google Search",
+    "bing.com": "Microsoft Bing",
+    "duckduckgo.com": "DuckDuckGo",
+    "yahoo.com": "Yahoo Search",
+    "brave.com": "Brave Search",
+    "ecosia.org": "Ecosia",
+    "startpage.com": "Startpage",
+    "kagi.com": "Kagi",
+    "yandex.com": "Yandex Search",
+    "yandex.ru": "Yandex Search",
+    "ya.ru": "Yandex Search",
+    "baidu.com": "Baidu",
+    "ask.com": "Ask.com",
+    "wolframalpha.com": "WolframAlpha",
+    "qwant.com": "Qwant",
+}
+
+
+def check_search_engine_query(url: str, canonical_url: str = "") -> Optional[Dict[str, Any]]:
+    """Detect whether input is a browser keyword search or a query to a verified search engine.
+
+    Returns:
+        Dict metadata if verified as a search engine query, else None.
+    """
+    if not url or not isinstance(url, str):
+        return None
+
+    raw_input = url.strip()
+
+    # 1. Detect raw keyword searches (e.g. phrases containing spaces without a valid protocol or domain)
+    # e.g. "weather in new york", "best restaurants", "how to code python"
+    if " " in raw_input and not raw_input.startswith(("http://", "https://")):
+        return {
+            "is_search": True,
+            "name": "Browser Keyword Search",
+            "type": "raw_keyword_query",
+            "query": raw_input,
+            "description": "User browser search keywords. Not a destination domain or phishing threat.",
+        }
+
+    # 2. Extract domain from canonical_url or url
+    target = canonical_url or raw_input
+    target_clean = target.lower()
+
+    # Normalize protocol for parsing
+    if "://" in target_clean:
+        domain_part = target_clean.split("://", 1)[1]
+    else:
+        domain_part = target_clean
+
+    hostname = domain_part.split("/")[0].split("?")[0].split(":")[0].strip()
+
+    # Check search engine domains
+    for se_domain, se_name in SEARCH_ENGINE_CATALOG.items():
+        if se_domain == "google":
+            if (
+                hostname == "google.com"
+                or hostname.endswith(".google.com")
+                or hostname.startswith("google.")
+                or ".google." in hostname
+            ):
+                return {
+                    "is_search": True,
+                    "name": se_name,
+                    "domain": hostname,
+                    "type": "search_engine_traffic",
+                    "description": f"Verified official query to {se_name}. Legitimate search engine traffic.",
+                }
+        else:
+            if hostname == se_domain or hostname.endswith(f".{se_domain}"):
+                return {
+                    "is_search": True,
+                    "name": se_name,
+                    "domain": hostname,
+                    "type": "search_engine_traffic",
+                    "description": f"Verified official query to {se_name}. Legitimate search engine traffic.",
+                }
+
+    # 3. Check common search URL paths with search query parameters (e.g. /search?q=..., /results?q=...)
+    if "/search" in target_clean or "/results" in target_clean or "/?q=" in target_clean:
+        if any(param in target_clean for param in ("?q=", "&q=", "?query=", "&query=", "?p=", "&p=", "?wd=", "&wd=")):
+            return {
+                "is_search": True,
+                "name": "Search Engine Query",
+                "domain": hostname,
+                "type": "parameterized_search_query",
+                "description": "Verified query to a search service. Search traffic is legitimate and safe.",
+            }
+
+    return None

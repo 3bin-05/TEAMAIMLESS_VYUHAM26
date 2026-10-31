@@ -20,8 +20,122 @@ export function normalizeUrl(url: string): string {
 }
 
 /**
+ * Detects whether a URL is a legitimate search engine or keyword search query.
+ * Browser keyword searches and search engine pages are safe user queries and
+ * MUST NEVER be intercepted, redirected, or blocked by Aegis.
+ */
+export function isSearchEngineUrl(url: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    const path = parsed.pathname.toLowerCase();
+
+    // 1. Google Search & regional domains (google.com, google.co.in, google.co.uk, etc.)
+    if (
+      host === 'google.com' ||
+      host.endsWith('.google.com') ||
+      host.includes('google.')
+    ) {
+      return true;
+    }
+
+    // 2. Microsoft Bing (bing.com, www.bing.com, cn.bing.com)
+    if (host === 'bing.com' || host.endsWith('.bing.com')) {
+      return true;
+    }
+
+    // 3. DuckDuckGo (duckduckgo.com)
+    if (host === 'duckduckgo.com' || host.endsWith('.duckduckgo.com')) {
+      return true;
+    }
+
+    // 4. Yahoo Search (search.yahoo.com, yahoo.com)
+    if (
+      host === 'yahoo.com' ||
+      host.endsWith('.yahoo.com') ||
+      host === 'search.yahoo.com' ||
+      host.endsWith('.search.yahoo.com')
+    ) {
+      return true;
+    }
+
+    // 5. Brave Search (search.brave.com, brave.com)
+    if (host === 'search.brave.com' || host.endsWith('.brave.com')) {
+      return true;
+    }
+
+    // 6. Ecosia (ecosia.org)
+    if (host === 'ecosia.org' || host.endsWith('.ecosia.org')) {
+      return true;
+    }
+
+    // 7. Startpage (startpage.com)
+    if (host === 'startpage.com' || host.endsWith('.startpage.com')) {
+      return true;
+    }
+
+    // 8. Kagi (kagi.com)
+    if (host === 'kagi.com' || host.endsWith('.kagi.com')) {
+      return true;
+    }
+
+    // 9. Yandex (yandex.com, yandex.ru, ya.ru)
+    if (
+      host === 'yandex.com' ||
+      host.endsWith('.yandex.com') ||
+      host === 'yandex.ru' ||
+      host.endsWith('.yandex.ru') ||
+      host === 'ya.ru'
+    ) {
+      return true;
+    }
+
+    // 10. Baidu (baidu.com)
+    if (host === 'baidu.com' || host.endsWith('.baidu.com')) {
+      return true;
+    }
+
+    // 11. Ask.com
+    if (host === 'ask.com' || host.endsWith('.ask.com')) {
+      return true;
+    }
+
+    // 12. WolframAlpha & Qwant
+    if (
+      host === 'wolframalpha.com' ||
+      host.endsWith('.wolframalpha.com') ||
+      host === 'qwant.com' ||
+      host.endsWith('.qwant.com')
+    ) {
+      return true;
+    }
+
+    // 13. Generic search path with search query parameters (e.g. /search?q=..., /results?q=...)
+    const hasSearchParam =
+      parsed.searchParams.has('q') ||
+      parsed.searchParams.has('query') ||
+      parsed.searchParams.has('p') ||
+      parsed.searchParams.has('wd') ||
+      parsed.searchParams.has('text');
+
+    if (
+      (path.includes('/search') || path.includes('/results') || path.includes('/web')) &&
+      hasSearchParam
+    ) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
+}
+
+/**
  * Checks whether a URL is exempt from security gateway interception.
- * Exclusions are strictly scoped to browser internals and AEGIS frontend/backend.
+ * Exclusions include browser internals, AEGIS frontend/backend, and search engine queries.
  */
 export function isExcludedFromInterception(url: string): boolean {
   if (!url || typeof url !== 'string') return true;
@@ -50,12 +164,17 @@ export function isExcludedFromInterception(url: string): boolean {
     return true;
   }
 
+  // 3. Search Engine Queries & Keywords in browser are completely exempt from interception
+  if (isSearchEngineUrl(url)) {
+    return true;
+  }
+
   try {
     const parsed = new URL(url);
     const hostname = parsed.hostname.toLowerCase();
     const port = parsed.port;
 
-    // 3. Narrowly scoped AEGIS Frontend & Backend infrastructure
+    // 4. Narrowly scoped AEGIS Frontend & Backend infrastructure
     const isLocal =
       hostname === 'localhost' ||
       hostname === '127.0.0.1' ||

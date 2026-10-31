@@ -8,7 +8,7 @@ from ml_model import predict_url, normalize_url, MODEL_VERSION
 from ml_model.exceptions import InvalidURLError
 from cache import MemoryCache
 from cyber_analysis import CyberOrchestrator, CyberAnalysisResult
-from cyber_analysis.threat_intel.official_domains import check_official_domain
+from cyber_analysis.threat_intel.official_domains import check_official_domain, check_search_engine_query
 from local_ai import LocalAIAnalyzer, AIAnalysisResult
 from .risk_scorer import calculate_risk_score
 from .decision_engine import DecisionConfig, classify_risk, generate_reasons
@@ -166,6 +166,45 @@ class AegisEngine:
                 "available": False,
                 "status": "bypassed_official_verified",
                 "summary": f"Fast-path verified {official_info.name}. Local LLM bypassed to conserve system resources.",
+                "final_verdict": "SAFE",
+                "final_score": 0,
+            }
+            res = AnalysisResult(
+                url=canonical_url,
+                classification="SAFE",
+                risk_score=0,
+                cached=False,
+                reasons=reasons,
+                signals=signals,
+                model_version=active_version,
+                analysis_time_ms=elapsed_ms,
+                ai=ai_data,
+            )
+            self.cache.set(canonical_url, res.to_dict(), model_version=active_version)
+            return res
+
+        # 3. Search Engine & Browser Keyword Search Fast-Path
+        # Browser searches on Google, Bing, DuckDuckGo, etc., or keyword search phrases
+        # are legitimate user search traffic and never phishing/malicious threats.
+        search_info = check_search_engine_query(url, canonical_url)
+        if search_info:
+            elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
+            reasons = [
+                f"Verified Search Engine Query ({search_info['name']}).",
+                search_info.get("description", "Browser keyword searches and official search traffic are safe."),
+            ]
+            signals = {
+                "search_engine_query": search_info,
+                "fast_path": True,
+                "resource_saving": True,
+                "ml_probability": 0.0,
+                "ml_prediction": 0,
+                "ml_label": "BENIGN",
+            }
+            ai_data = {
+                "available": False,
+                "status": "bypassed_search_query",
+                "summary": f"Browser search query ({search_info['name']}) verified safe. Deep probers and LLM bypassed.",
                 "final_verdict": "SAFE",
                 "final_score": 0,
             }

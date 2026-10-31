@@ -161,3 +161,67 @@ def build_prompt_messages(context: AIContext) -> List[Dict[str, str]]:
             ),
         },
     ]
+
+
+CLAUDE_OPTIMIZED_SYSTEM_PROMPT = """You are AEGIS Cyber Intelligence — the final decision arbiter for URL threat classification.
+Output strictly 1 of 3 verdicts in compact JSON:
+- "SAFE" (Score 0-29): Low phishing risk, established authentic web history, clean service.
+- "SUSPICIOUS" (Score 30-69): Elevated or ambiguous risk, unverified/new domain with zero footprint, or anomalous redirects.
+- "MALICIOUS" (Score 70-100): High risk threat, active phishing, brand impersonation/typosquatting, or threat intel hit.
+
+CORE RULES:
+1. Major brands (Meta, Google, Apple, etc.) often redact WHOIS/RDAP details. Redacted WHOIS on established domains is NEVER phishing.
+2. AEO & Web History: Major established entities are SAFE unless compromised or confirmed malicious.
+3. Resilient fallback: If any feed (e.g. VirusTotal 429) is missing, evaluate using remaining signals.
+4. Typosquatting/brand lookalike on unknown domains is SUSPICIOUS (≥55) or MALICIOUS (≥75).
+
+JSON FORMAT ONLY (no markdown fences or prose):
+{"final_verdict":"SAFE|SUSPICIOUS|MALICIOUS","final_score":<0-100>,"summary":"1-2 concise sentences","key_findings":["f1","f2"],"uncertainties":[]}"""
+
+
+def build_claude_optimized_messages(context: AIContext) -> List[Dict[str, str]]:
+    """Construct ultra-compact, token-efficient messages for Claude to minimize latency and token usage."""
+    telemetry: Dict[str, Any] = {
+        "url": context.url,
+        "preliminary": f"{context.classification} (score: {context.risk_score})",
+    }
+    if context.ml_signal:
+        prob = context.ml_signal.get("probability")
+        if prob is not None:
+            telemetry["ml_prob"] = round(float(prob), 4)
+
+    if context.web_history_signals and context.web_history_signals.get("has_major_web_history"):
+        telemetry["web_history"] = {
+            "entity": context.web_history_signals.get("entity_name"),
+            "authority": context.web_history_signals.get("web_authority"),
+        }
+
+    if context.rdap_signals:
+        rdap_age = context.rdap_signals.get("domain_age_days")
+        rdap_privacy = context.rdap_signals.get("privacy_redacted")
+        if rdap_age is not None or rdap_privacy is not None:
+            telemetry["rdap"] = {
+                "age_days": rdap_age,
+                "privacy_redacted": rdap_privacy,
+            }
+
+    ti = context.threat_intel_signals
+    if ti:
+        if ti.get("brand_lookalike"):
+            telemetry["brand_lookalike"] = ti.get("brand_lookalike")
+        if ti.get("is_allowlisted"):
+            telemetry["allowlisted"] = True
+        vt = ti.get("virustotal", {})
+        if vt and vt.get("available") and vt.get("malicious", 0) > 0:
+            telemetry["vt_malicious"] = vt.get("malicious")
+        sb = ti.get("safe_browsing", {})
+        if sb and sb.get("is_threat"):
+            telemetry["safe_browsing"] = sb.get("threat_types", [])
+
+    return [
+        {"role": "system", "content": CLAUDE_OPTIMIZED_SYSTEM_PROMPT},
+        {
+            "role": "user",
+            "content": f"URL Telemetry:\n{json.dumps(telemetry, separators=(',', ':'))}\nEvaluate:",
+        },
+    ]
